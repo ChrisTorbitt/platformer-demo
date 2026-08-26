@@ -42,24 +42,53 @@ jobs:
           echo "Android SDK:"
           echo $ANDROID_HOME
 
+          echo ""
           echo "Installed build tools:"
           ls -la $ANDROID_HOME/build-tools
 
+          echo ""
           echo "Installed platforms:"
           ls -la $ANDROID_HOME/platforms
 
+          echo ""
           echo "Godot version:"
           godot --version
+
+          echo ""
+          echo "Export presets:"
+          cat export_presets.cfg
 
       - name: Export Android debug APK
         run: |
           mkdir -v -p build/android
 
+          set +e
+
           godot --headless --verbose \
             --export-debug "Android" \
-            build/android/PlatformWonderDemo.apk
+            build/android/PlatformWonderDemo.apk \
+            2>&1 | tee godot-export.log
+
+          EXIT_CODE=${PIPESTATUS[0]}
+
+          echo ""
+          echo "=========================================="
+          echo "IMPORTANT ANDROID EXPORT MESSAGES"
+          echo "=========================================="
+
+          grep -i -E \
+            "error|configuration|android|sdk|jdk|java|keystore|build tools|apksigner|adb|failed" \
+            godot-export.log \
+            | tail -100 || true
+
+          echo "=========================================="
+          echo "Godot exit code: $EXIT_CODE"
+          echo "=========================================="
+
+          exit $EXIT_CODE
 
       - name: Upload APK artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
